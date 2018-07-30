@@ -1,0 +1,8 @@
+## Pass back the result from DynamoDB. **
+$util.toJson($ctx.result)
+
+#if($context.result["userId"] == $context.identity.username)
+    $utils.toJson($context.result);
+#else
+    $utils.unauthorized()
+#end

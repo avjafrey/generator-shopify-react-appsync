@@ -1,0 +1,15 @@
+fragment ShopSettings on Shop {
+    country
+    domain
+    email
+    iana_timezone
+    id
+    name
+    plan_name
+}
+
+query GetShopSettings {
+    shop {
+        ...ShopSettings
+    }
+}

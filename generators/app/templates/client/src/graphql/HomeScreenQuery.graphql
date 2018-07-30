@@ -1,0 +1,14 @@
+query HomeScreenQuery($shopDomain: ID!) {
+    shop(id: $shopDomain) {
+        accessToken
+        country
+        domain
+        email
+        id
+        installedAt
+        name
+        platform
+        platformPlan
+        timezone
+    }
+  }

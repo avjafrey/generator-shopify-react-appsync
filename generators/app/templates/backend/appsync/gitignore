@@ -1,0 +1,21 @@
+# package directories
+node_modules
+jspm_packages
+
+# Serverless directories
+.serverless
+
+# Webpack directories
+.webpack
+
+# Jest code coverage directories
+coverage
+
+# Keep our secrets
+env.yml
+
+# Yarn error log
+yarn-error.log
+
+# Unless we want to keep it
+!.gitkeep

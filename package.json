@@ -1,0 +1,30 @@
+{
+  "name": "generator-shopify-react-appsync",
+  "version": "1.0.0-rc1",
+  "description": "Yeoman Shopify App Generator (React, Polaris, TypeScript, GraphQL, Webpack, AWs AppSync, Serverless)",
+  "keywords": [
+    "appsync",
+    "api gateway",
+    "aws",
+    "graphql",
+    "lambda",
+    "polaris",
+    "react",
+    "serverless",
+    "shopify",
+    "typescript",
+    "webpack",
+    "yeoman-generator"
+  ],
+  "files": [
+    "generators"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Richard Buggy<rich@buggy.id.au>",
+  "license": "MIT",
+  "dependencies": {
+    "yeoman-generator": "^2.0.5"
+  }
+}

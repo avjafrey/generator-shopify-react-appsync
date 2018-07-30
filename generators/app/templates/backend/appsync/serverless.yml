@@ -1,0 +1,317 @@
+# AppSync Service
+#
+# This is the serverless.yml for the AppSync service.
+
+service:
+  name: <%= appname %>-appsync
+
+# Add the serverless-webpack plugin
+plugins:
+  - serverless-webpack
+  - serverless-iam-roles-per-function
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  memorySize: 256
+  timeout: 3
+  environment: ${file(env.yml):${self:custom.stage}}
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+  shopsTable: "${self:service}-shops-${self:custom.stage}"
+  userPoolName: "${self:service}-user-pool-${self:custom.stage}"
+  userPoolReplyToEmailAddress: ${file(env.yml):${self:custom.stage}.REPLY_EMAIL}
+  identityPoolName: "<%= appname %> ${self:custom.stage}"
+  webpack:
+    includeModules:
+      forceExclude:
+        - aws-sdk
+    packager: "yarn"
+
+package:
+  exclude:
+    - .gitignore
+    - coverage/**
+    - env-example.yml
+    - env.yml
+    - src/**
+    - schema.json
+    - serverless.yml
+    - templates/**
+    - tsconfig.json
+    - tslint.json
+    - webpack.config.js
+    - yarn.lock
+
+functions:
+  createAuthChallenge:
+    handler: src/createAuthChallenge.handler
+    events:
+      - cognitoUserPool:
+          pool: AppUserPool
+          trigger: CreateAuthChallenge
+  defineAuthChallenge:
+    handler: src/defineAuthChallenge.handler
+    events:
+      - cognitoUserPool:
+          pool: AppUserPool
+          trigger: DefineAuthChallenge
+  preSignUp:
+    handler: src/preSignUp.handler
+    events:
+      - cognitoUserPool:
+          pool: AppUserPool
+          trigger: PreSignUp
+  verifyAuthChallengeResponse:
+    handler: src/verifyAuthChallengeResponse.handler
+    events:
+      - cognitoUserPool:
+          pool: AppUserPool
+          trigger: VerifyAuthChallengeResponse
+
+resources:
+  Resources:
+    CognitoUserPoolAppUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        DeviceConfiguration: 
+          ChallengeRequiredOnNewDevice: false
+        EmailConfiguration: 
+          ReplyToEmailAddress: ${self:custom.userPoolReplyToEmailAddress}
+        MfaConfiguration: OFF
+        Policies: 
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+            RequireUppercase: true
+        Schema:
+          -
+            AttributeDataType: String
+            Mutable: true
+            Name: "access_token"
+          -
+            AttributeDataType: String
+            Mutable: true
+            Name: "internal_domain"
+          -
+            AttributeDataType: String
+            Name: "shop_id"
+        UsernameAttributes:
+          - email
+        UserPoolName: ${self:custom.userPoolName}
+    CognitoUserPoolClientAppUserPoolDefault:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: "default-client"
+        GenerateSecret: false
+        RefreshTokenValidity: 30
+        UserPoolId: { "Ref": "CognitoUserPoolAppUserPool" }
+    CognitoUserPoolClientAppUserPoolOAuth:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: "oauth-client"
+        GenerateSecret: false
+        ExplicitAuthFlows:
+          - "CUSTOM_AUTH_FLOW_ONLY"
+        RefreshTokenValidity: 30
+        UserPoolId: { "Ref": "CognitoUserPoolAppUserPool" }
+    CognitoIdentityPoolAuthenticatedRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            -
+              Effect: Allow
+              Principal:
+                Federated: cognito-identity.amazonaws.com
+              Action: sts:AssumeRoleWithWebIdentity
+              Condition:
+                StringEquals:
+                  cognito-identity.amazonaws.com:aud:
+                    Ref: CognitoIdentityPool
+                ForAnyValue:StringLike:
+                  cognito-identity.amazonaws.com:amr: authenticated
+        Path: "/"
+        Policies:
+          -
+            PolicyName: "${self:service}-${self:custom.stage}-${self:custom.region}-authenticateRolePolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                -
+                  Effect: "Allow"
+                  Action:
+                    - "mobileanalytics:PutEvents"
+                    - "cognito-sync:*"
+                    - "cognito-identity:*"
+                  Resource:
+                    - "*"
+        RoleName: "${self:service}-${self:custom.stage}-${self:custom.region}-authenticatedRole"
+    CognitoIdentityPoolUnauthenticatedRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            -
+              Effect: Allow
+              Principal:
+                Federated: cognito-identity.amazonaws.com
+              Action: sts:AssumeRoleWithWebIdentity
+              Condition:
+                StringEquals:
+                  cognito-identity.amazonaws.com:aud:
+                    Ref: CognitoIdentityPool
+                ForAnyValue:StringLike:
+                  cognito-identity.amazonaws.com:amr: unauthenticated
+        Path: "/"
+        Policies:
+          -
+            PolicyName: "${self:service}-${self:custom.stage}-${self:custom.region}-authenticateRolePolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                -
+                  Effect: "Allow"
+                  Action:
+                    - "mobileanalytics:PutEvents"
+                    - "cognito-sync:*"
+                  Resource:
+                    - "*"
+        RoleName: "${self:service}-${self:custom.stage}-${self:custom.region}-unauthenticatedRole"
+    CognitoIdentityPool:
+      Type: AWS::Cognito::IdentityPool
+      Properties:
+        IdentityPoolName: ${self:custom.identityPoolName}
+        AllowUnauthenticatedIdentities: false
+        CognitoIdentityProviders:
+          - ClientId:
+              Ref: CognitoUserPoolClientAppUserPoolDefault
+            ProviderName:
+              Fn::GetAtt: [ "CognitoUserPoolAppUserPool", "ProviderName" ]
+          - ClientId:
+              Ref: CognitoUserPoolClientAppUserPoolOAuth
+            ProviderName:
+              Fn::GetAtt: [ "CognitoUserPoolAppUserPool", "ProviderName" ]
+    CognitoIdentityPoolAuthenticateRoleAttachment:
+      Type: AWS::Cognito::IdentityPoolRoleAttachment
+      Properties:
+        IdentityPoolId:
+          Ref: CognitoIdentityPool
+        Roles:
+          authenticated:
+            Fn::GetAtt: [ "CognitoIdentityPoolAuthenticatedRole", "Arn" ]
+          unauthenticated:
+            Fn::GetAtt: [ "CognitoIdentityPoolUnauthenticatedRole", "Arn" ]
+    ShopsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.shopsTable}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+    AppSyncGraphQLApiLogRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement: 
+            - 
+              Effect: "Allow"
+              Principal: 
+                Service: 
+                  - "appsync.amazonaws.com"
+              Action: 
+                - "sts:AssumeRole"
+        Path: "/"
+        Policies:
+          -
+            PolicyName: "${self:service}-${self:custom.stage}-${self:custom.region}-appSyncLogRoleLogPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                -
+                  Effect: "Allow"
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource:
+                    - "*"
+                -
+                  Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                  Resource: { "Fn::Join" : [":", ["arn:aws:dynamodb:${self:custom.region}", { "Ref" : "AWS::AccountId" }, "table/${self:custom.shopsTable}" ] ]  }
+        RoleName: "${self:service}-${self:custom.stage}-${self:custom.region}-appSyncLogRole"
+    AppSyncGraphQLApi:
+      Type: AWS::AppSync::GraphQLApi
+      Properties:
+        UserPoolConfig:
+          UserPoolId: { "Ref": "CognitoUserPoolAppUserPool" }
+          AwsRegion: ${self:custom.region}
+          DefaultAction: ALLOW
+        Name: "${self:service}-${self:provider.stage}"
+        AuthenticationType: AMAZON_COGNITO_USER_POOLS
+        LogConfig:
+          CloudWatchLogsRoleArn: { "Fn::GetAtt" : ["AppSyncGraphQLApiLogRole", "Arn"] }
+          FieldLogLevel: ERROR
+    AppSyncGraphQLSchema:
+      Type: AWS::AppSync::GraphQLSchema
+      Properties:
+        Definition: ${file(templates/schema.graphql)}
+        ApiId: { "Fn::GetAtt": [ "AppSyncGraphQLApi", "ApiId" ] }
+    AppSyncDataSourceShopsTable:
+      Type: AWS::AppSync::DataSource
+      Properties:
+        Type: AMAZON_DYNAMODB
+        ServiceRoleArn: { "Fn::GetAtt" : ["AppSyncGraphQLApiLogRole", "Arn"] }
+        ApiId: { "Fn::GetAtt": [ "AppSyncGraphQLApi", "ApiId" ] }
+        Name: "shops_${self:custom.stage}"
+        DynamoDBConfig:
+          TableName: ${self:custom.shopsTable}
+          AwsRegion: ${self:custom.region}
+          UseCallerCredentials: false
+    AppSyncResolverQuerySingleShop:
+      Type: AWS::AppSync::Resolver
+      Properties:
+        TypeName: "Query"
+        DataSourceName: "shops_${self:custom.stage}"
+        RequestMappingTemplate: ${file(./templates/dynamodb/request/get_item_by_id.vtl)}
+        ResponseMappingTemplate: ${file(./templates/dynamodb/response/owner_can_read.vtl)}
+        ApiId: { "Fn::GetAtt": [ "AppSyncGraphQLApi", "ApiId" ] }
+        FieldName: "shop"
+      DependsOn: AppSyncGraphQLSchema
+
+  Outputs:
+    ShopsTable:
+      Description: "The name of the Shops Table"
+      Value:
+        Ref: ShopsTable
+    ShopsTableArn:
+      Description: "The ARN for the Shops Table"
+      Value:
+        Fn::GetAtt:
+          - ShopsTable
+          - Arn
+    CognitoUserPoolAppUserPoolId:
+      Description: "The ID for the Cognito User Pool"
+      Value:
+        Ref: CognitoUserPoolAppUserPool
+    CognitoUserPoolAppUserPoolArn:
+      Description: "The ARN for the Cognito User Pool"
+      Value:
+        Fn::GetAtt:
+          - CognitoUserPoolAppUserPool
+          - Arn

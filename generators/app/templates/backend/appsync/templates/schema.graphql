@@ -1,0 +1,24 @@
+enum Platform {
+    SHOPIFY
+}
+
+type Shop {
+    accessToken: String
+    country: String
+    domain: String
+    email: String
+    id: ID! # {cognitoId}
+    installedAt: String
+    name: String
+    platform: Platform
+    platformPlan: String
+    timezone: String
+}
+
+type Query {
+    shop(id: ID!): Shop
+}
+
+schema {
+    query: Query
+}

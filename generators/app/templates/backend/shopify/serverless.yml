@@ -1,0 +1,179 @@
+# Shopify Service
+#
+# This is the serverless.yml for the Shopify service.
+
+service:
+  name: <%= appname %>-shopify
+
+# Add the serverless-webpack plugin
+plugins:
+  - serverless-webpack
+  - serverless-iam-roles-per-function
+  - serverless-pseudo-parameters  # Kludge requires for serverless-step-functions
+  - serverless-step-functions
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  memorySize: 256
+  timeout: 10
+  environment: ${file(env.yml):${self:custom.stage}}
+
+custom:
+  dashService: <%= appname %>Dashshopify  # Kludge requires for serverless-step-functions
+  stage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+  cognitoUserPoolId: ${cf:<%= appname %>-appsync-${self:custom.stage}.CognitoUserPoolAppUserPoolId}
+  cognitoUserPoolArn: ${cf:<%= appname %>-appsync-${self:custom.stage}.CognitoUserPoolAppUserPoolArn}
+  shopsTable: ${cf:<%= appname %>-appsync-${self:custom.stage}.ShopsTable}
+  shopsTableArn: ${cf:<%= appname %>-appsync-${self:custom.stage}.ShopsTableArn}
+  appUninstalledTopic: "${self:service}-app-uninstalled-${self:custom.stage}"
+  shopUpdateTopic: "${self:service}-shop-update-${self:custom.stage}"
+  webpack:
+    includeModules:
+      forceExclude:
+        - aws-sdk
+    packager: "yarn"
+
+package:
+  exclude:
+    - .gitignore
+    - coverage/**
+    - env-example.yml
+    - env.yml
+    - src/**
+    - schema.json
+    - serverless.yml
+    - tsconfig.json
+    - tslint.json
+    - webpack.config.js
+    - yarn.lock
+
+functions:
+  appUninstalled:
+    handler: src/appUninstalled.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:DeleteItem
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+        Resource: ${self:custom.shopsTableArn}
+    events:
+      - sns: ${self:custom.appUninstalledTopic}
+  authBegin:
+    handler: src/authBegin.handler
+    events:
+      - http:
+          path: auth/{platform}
+          method: get
+          cors: true
+  authComplete:
+    handler: src/authComplete.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: ${self:custom.shopsTableArn}
+      - Effect: Allow
+        Action:
+          - cognito-idp:AdminCreateUser
+          - cognito-idp:AdminGetUser
+          - cognito-idp:AdminUpdateUserAttributes
+        Resource: ${self:custom.cognitoUserPoolArn}
+      - Effect: Allow
+        Action:
+          - states:StartExecution
+        Resource:
+          Ref: "AuthCompleteStepFunDash${self:custom.dashService}Dash${self:custom.stage}"
+    events:
+      - http:
+          path: auth/{platform}
+          method: post
+          cors: true
+    environment:
+      AUTH_COMPLETE_STATE_MACHINE_ARN: { "Ref": "AuthCompleteStepFunDash${self:custom.dashService}Dash${self:custom.stage}" }
+      USER_POOL_ID: ${self:custom.cognitoUserPoolId}
+  scriptTagsManager:
+    handler: src/scriptTagsManager.handler
+  shopUpdate:
+    handler: src/shopUpdate.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: ${self:custom.shopsTableArn}
+    events:
+      - sns: ${self:custom.shopUpdateTopic}
+  webhooksHandler:
+    handler: src/webhooksHandler.handler
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - SNS:Publish
+        Resource:
+          Fn::Join:
+            - ":"
+            - - "arn:aws:sns:${self:custom.region}"
+              - Ref: "AWS::AccountId"
+              - "${self:custom.appUninstalledTopic}"
+      - Effect: Allow
+        Action:
+          - SNS:Publish
+        Resource:
+          Fn::Join:
+            - ":"
+            - - "arn:aws:sns:${self:custom.region}"
+              - Ref: "AWS::AccountId"
+              - "${self:custom.shopUpdateTopic}"
+    events:
+      - http:
+          path: webhooks/shopify/{webhook+}
+          method: post
+    environment:
+      APP_UNINSTALLED_TOPIC_ARN:
+        Fn::Join:
+          - ":"
+          - - "arn:aws:sns:${self:custom.region}"
+            - Ref: "AWS::AccountId"
+            - "${self:custom.appUninstalledTopic}"
+      SHOP_UPDATE_TOPIC_ARN:
+        Fn::Join:
+          - ":"
+          - - "arn:aws:sns:${self:custom.region}"
+            - Ref: "AWS::AccountId"
+            - "${self:custom.shopUpdateTopic}"
+  webhooksManager:
+    handler: src/webhooksManager.handler
+    environment:
+      WEBHOOKS_URL:
+        Fn::Join:
+          - ""
+          - - "https://"
+            - Ref: ApiGatewayRestApi
+            - ".execute-api.${self:custom.region}.amazonaws.com/${self:custom.stage}/webhooks/shopify"
+
+stepFunctions:
+  stateMachines:
+    AuthComplete:
+      name: authCompleteStepFun-${self:service}-${self:custom.stage}
+      definition:
+        Comment: "All of the tasks required after the user completes OAuth"
+        StartAt: Parallel
+        States:
+          Parallel:
+            Type: Parallel
+            End: true
+            Branches:
+              - StartAt: InstallWebhooks
+                States:
+                  InstallWebhooks:
+                    Type: Task
+                    Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-webhooksManager
+                    End: true
+              - StartAt: InstallScriptTags
+                States:
+                  InstallScriptTags:
+                    Type: Task
+                    Resource: arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${self:custom.stage}-scriptTagsManager
+                    End: true

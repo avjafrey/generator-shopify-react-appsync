@@ -1,0 +1,78 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Renders correctly 1`] = `
+<main
+  role="main"
+>
+  <div
+    className="Polaris-EmptyState"
+  >
+    <div
+      className="Polaris-EmptyState__Section"
+    >
+      <div
+        className="Polaris-EmptyState__DetailsContainer"
+      >
+        <div
+          className="Polaris-EmptyState__Details"
+        >
+          <div
+            className="Polaris-TextContainer"
+          >
+            <p
+              className="Polaris-DisplayText Polaris-DisplayText--sizeMedium"
+            >
+              Unexpected Error
+            </p>
+            <div
+              className="Polaris-EmptyState__Content"
+            >
+              <p>
+                Well this is embarrasing. Something unexpected happened and we couldn't recover.
+              </p>
+            </div>
+          </div>
+          <div
+            className="Polaris-EmptyState__Actions"
+          >
+            <div
+              className="Polaris-ButtonGroup"
+            >
+              <div
+                className="Polaris-ButtonGroup__Item"
+                onBlur={[Function]}
+                onFocus={[Function]}
+              >
+                <a
+                  className="Polaris-Button Polaris-Button--primary Polaris-Button--sizeLarge"
+                  data-polaris-unstyled={true}
+                  href="/"
+                  onMouseUp={[Function]}
+                >
+                  <span
+                    className="Polaris-Button__Content"
+                  >
+                    <span>
+                      Application Home
+                    </span>
+                  </span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="Polaris-EmptyState__ImageContainer"
+      >
+        <img
+          alt=""
+          className="Polaris-EmptyState__Image"
+          role="presentation"
+          src="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
+        />
+      </div>
+    </div>
+  </div>
+</main>
+`;

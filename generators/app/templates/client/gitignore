@@ -1,0 +1,14 @@
+# code coverage
+coverage
+
+# distribution
+dist
+
+# npm modules
+node_modules
+
+# yarn error log
+yarn-error.log
+
+# vscode config
+.vscode
