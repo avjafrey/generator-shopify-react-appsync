@@ -15,7 +15,11 @@ provider:
   runtime: nodejs8.10
   memorySize: 256
   timeout: 3
-  environment: ${file(env.yml):${self:custom.stage}}
+  environment:
+    JWT_ISS: ${ssm:/<%= appname %>/${self:custom.stage}/jwtIss}
+    JWT_SECRET: ${ssm:/<%= appname %>/${self:custom.stage}/jwtSecret}
+    SHOPS_TABLE: "${self:custom.shopsTable}"
+    REPLY_EMAIL: ${ssm:/<%= appname %>/${self:custom.stage}/replyEmail}
 
 custom:
   stage: ${opt:stage, self:provider.stage}

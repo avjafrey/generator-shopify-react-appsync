@@ -6,9 +6,6 @@ module.exports = class extends Generator {
 
         this.argument('appname', { type: String, required: false });
         this.argument('shopifyApiKey', { type: String, required: false });
-        this.argument('shopifyApiSecret', { type: String, required: false });
-        this.argument('email', { type: String, required: false });
-        this.argument('jwtSecret', { type: String, required: false });
     }
 
     prompting() {
@@ -28,34 +25,10 @@ module.exports = class extends Generator {
                 message: 'Your Shopify API Key',
             });
         }
-        if (!this.options.shopifyApiSecret) {
-            prompts.push({
-                type: 'input',
-                name: 'shopifyApiSecret',
-                message: 'Your Shopify API Secret',
-            });
-        }
-        if (!this.options.email) {
-            prompts.push({
-                type: 'input',
-                name: 'email',
-                message: 'Support Email',
-            });
-        }
-        if (!this.options.jwtSecret) {
-            prompts.push({
-                type: 'input',
-                name: 'jwtSecret',
-                message: 'JWT Secret',
-            });
-        }
         return this.prompt(prompts)
             .then((answers) => {
                 if (answers.appname) { this.options.appname = answers.appname }
                 if (answers.shopifyApiKey) { this.options.shopifyApiKey = answers.shopifyApiKey }
-                if (answers.shopifyApiSecret) { this.options.shopifyApiSecret = answers.shopifyApiSecret }
-                if (answers.email) { this.options.email = answers.email }
-                if (answers.jwtSecret) { this.options.jwtSecret = answers.jwtSecret }
             });
     }
 
@@ -67,7 +40,6 @@ module.exports = class extends Generator {
             "backend/appsync/templates/dynamodb/request/get_item_by_id.vtl",
             "backend/appsync/templates/dynamodb/response/owner_can_read.vtl",
             "backend/appsync/templates/schema.graphql",
-            "backend/appsync/env.yml",
             "backend/appsync/package.json",
             "backend/appsync/serverless.yml",
             "backend/appsync/src/__tests__/createAuthChallenge.test.ts",
@@ -84,7 +56,6 @@ module.exports = class extends Generator {
             "backend/appsync/tslint.json",
             "backend/appsync/webpack.config.js",
             "backend/appsync/yarn.lock",
-            "backend/shopify/env.yml",
             "backend/shopify/package.json",
             "backend/shopify/schema-appsync.json",
             "backend/shopify/schema-shopify.json",
@@ -180,9 +151,6 @@ module.exports = class extends Generator {
         const params = {
             "appname": this.options.appname || this.appname,
             "shopifyApiKey": this.options.shopifyApiKey || this.shopifyApiKey,
-            "shopifyApiSecret": this.options.shopifyApiSecret || this.shopifyApiSecret,
-            "email": this.options.email || this.email,
-            "jwtSecret": this.options.jwtSecret || this.jwtSecret,
         }
 
         for (const f of templateFiles) {

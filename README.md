@@ -17,7 +17,7 @@ npm install generator-shopify-react-appsync
 Finally you can generate a new starter app in the current directory by using
 
 ```sh
-yo shopify-react-appsync --appname YOUR-APP-NAME --shopifyApiKey YOUR-SHOPIFY-API-KEY --shopifyApiSecret YOUR-SHOPIFY-API-SECRET --email YOUR-SUPPORT-EMAIL --jwtSecret YOUR-JWT-SECRET
+yo shopify-react-appsync --appname YOUR-APP-NAME --shopifyApiKey YOUR-SHOPIFY-API-KEY
 ```
 
 # Backend
@@ -29,6 +29,19 @@ You need to deploy the services in the following order:
 * AppSync
 * Shopify
 
+## Configuration
+
+From 1.0-rc2 we use the AWS System Manager Parameter Store for storing configuration options you may want to change. Before deploying you neeed to set the following values.
+
+```sh
+aws ssm put-parameter --name /YOUR-APP-NAME/STAGE/jwtIss --value YOUR-JWT-ISS --type String
+aws ssm put-parameter --name /YOUR-APP-NAME/STAGE/jwtSecret --value YOUR-JWT-SECRET --type String
+aws ssm put-parameter --name /YOUR-APP-NAME/STAGE/replyEmail --value YOUR-REPLY-EMAIL --type String
+aws ssm put-parameter --name /YOUR-APP-NAME/STAGE/shopifyApiKey --value YOUR-SHOPIFY-API-KEY --type String
+aws ssm put-parameter --name /YOUR-APP-NAME/STAGE/shopifyApiSecret --value YOUR-SHOPIFY-API-SECRET --type String
+```
+
+
 ## AppSync
 
 ### Dependencies
@@ -39,15 +52,9 @@ The dependencies for the AppSync service are located in `backend/appsync/package
 yarn install
 ```
 
-### Configuration
-
-The configuration is stored in `backend/appsync/serverless.yml` and `backend/appsync/env.yml`.
-
-Before you deploy make sure you updated the `REPLY_EMAIL` setting in `backend/appsync/env.yml`
-
 ### Deployment
 
-To deploy the service use the command
+Make sure you have setup all of the parameters in the System Manager Parameter Store then deploy the service use the command
 
 ```sh
 sls deploy -r YOUR-REGION -s YOUR-STAGE --aws-profile YOUR-AWS-PROFILE
@@ -63,13 +70,9 @@ The dependencies for the Shopify service are located in `backend/shopify/package
 yarn install
 ```
 
-### Configuration
-
-The configuration is stored in `backend/shopify/serverless.yml` and `backend/shopify/env.yml`.
-
 ### Deployment
 
-To deploy the service use the command
+Make sure you have setup all of the parameters in the System Manager Parameter Store then deploy the service use the command
 
 ```sh
 sls deploy -r YOUR-REGION -s YOUR-STAGE --aws-profile YOUR-AWS-PROFILE

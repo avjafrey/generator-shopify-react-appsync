@@ -17,7 +17,13 @@ provider:
   runtime: nodejs8.10
   memorySize: 256
   timeout: 10
-  environment: ${file(env.yml):${self:custom.stage}}
+  environment:
+    JWT_ISS: ${ssm:/<%= appname %>/${self:custom.stage}/jwtIss}
+    JWT_SECRET: ${ssm:/<%= appname %>/${self:custom.stage}/jwtSecret}
+    SHOPIFY_API_KEY: ${ssm:/<%= appname %>/${self:custom.stage}/shopifyApiKey}
+    SHOPIFY_API_SECRET: ${ssm:/<%= appname %>/${self:custom.stage}/shopifyApiSecret}
+    SHOPIFY_SCOPE: "read_script_tags:write_script_tags"
+    SHOPS_TABLE: "${self:custom.shopsTable}"
 
 custom:
   dashService: <%= appname %>Dashshopify  # Kludge requires for serverless-step-functions
